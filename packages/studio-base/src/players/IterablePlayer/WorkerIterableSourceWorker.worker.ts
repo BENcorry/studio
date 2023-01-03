@@ -25,6 +25,7 @@ type SourceFn = () => Promise<{
 const RegisteredSourceModuleLoaders: Record<string, SourceFn> = {
   mcap: async () => await import("./Mcap/McapIterableSource"),
   rosbag: async () => await import("./BagIterableSource"),
+  rosbags: async () => await import("./MultiBagIterableSource"),
   rosdb3: async () => await import("./rosdb3/RosDb3IterableSource"),
   ulog: async () => await import("./ulog/UlogIterableSource"),
   foxgloveDataPlatform: async () =>

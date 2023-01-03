@@ -15,22 +15,25 @@ class Ros1LocalBagDataSourceFactory implements IDataSourceFactory {
   public displayName = "ROS 1 Bag";
   public iconName: IDataSourceFactory["iconName"] = "OpenFile";
   public supportedFileTypes = [".bag"];
+  public supportsMultiFile = true;
 
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
-    const file = args.file;
-    if (!file) {
+    const files = args.file ? [args.file] : args.files;
+    const name = args.file ? args.file.name : args.files?.map((file) => file.name).join(",");
+
+    if (!files || files.length === 0) {
       return;
     }
 
     const source = new WorkerIterableSource({
-      sourceType: "rosbag",
-      initArgs: { file },
+      sourceType: files.length === 1 ? "rosbag" : "rosbags",
+      initArgs: files.length === 1 ? { file: files[0] } : { files },
     });
 
     return new IterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
-      name: file.name,
+      name,
       sourceId: this.id,
     });
   }

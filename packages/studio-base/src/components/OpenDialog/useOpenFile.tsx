@@ -25,7 +25,8 @@ export function useOpenFile(sources: IDataSourceFactory[]): () => Promise<void> 
   }, [sources]);
 
   return useCallback(async () => {
-    const [fileHandle] = await showOpenFilePicker({
+    const fileHandles = await showOpenFilePicker({
+      multiple: true,
       types: [
         {
           description: allExtensions.join(", "),
@@ -33,11 +34,30 @@ export function useOpenFile(sources: IDataSourceFactory[]): () => Promise<void> 
         },
       ],
     });
-    if (!fileHandle) {
+    if (fileHandles.length === 0) {
       return;
     }
 
-    const file = await fileHandle.getFile();
+    let sourceExtName = "";
+    const files = await Promise.all(
+      fileHandles.map(async (fileHandle) => {
+        const file = await fileHandle.getFile();
+        const currentFileExtname = path.extname(file.name);
+        if (sourceExtName === "") {
+          sourceExtName = currentFileExtname;
+        } else {
+          if (sourceExtName !== currentFileExtname) {
+            throw new Error(`Different file suffix.`);
+          }
+        }
+        return file;
+      }),
+    );
+
+    if (files.length === 0) {
+      throw new Error(`No files selected`);
+    }
+
     // Find the first _file_ source which can load our extension
     const matchingSources = sources.filter((source) => {
       // Only consider _file_ type sources that have a list of supported file types
@@ -45,19 +65,18 @@ export function useOpenFile(sources: IDataSourceFactory[]): () => Promise<void> 
         return false;
       }
 
-      const extension = path.extname(file.name);
-      return source.supportedFileTypes.includes(extension);
+      return source.supportedFileTypes.includes(sourceExtName);
     });
 
     if (matchingSources.length > 1) {
-      throw new Error(`Multiple source matched ${file.name}. This is not supported.`);
+      throw new Error(`Multiple source matched ${sourceExtName}. This is not supported.`);
     }
 
     const foundSource = matchingSources[0];
     if (!foundSource) {
-      throw new Error(`Cannot find source to handle ${file.name}`);
+      throw new Error(`Cannot find source to handle ${sourceExtName}`);
     }
 
-    selectSource(foundSource.id, { type: "file", handle: fileHandle });
+    selectSource(foundSource.id, { type: "file", files });
   }, [allExtensions, selectSource, sources]);
 }
